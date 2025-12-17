@@ -1,0 +1,120 @@
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import type { Product } from '../types';
+import { Plus, Package } from 'lucide-react';
+
+export default function Products() {
+    const [products, setProducts] = useState<Product[]>([]);
+    // const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [newProduct, setNewProduct] = useState({ name: '', price: '', description: '' });
+
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    const fetchProducts = async () => {
+        // setLoading(true);
+        const { data, error } = await supabase
+            .from('products_bons_frutos')
+            .select('*')
+            .order('name');
+        if (!error && data) setProducts(data);
+        // setLoading(false);
+    };
+
+    const handleCreateProduct = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const { error } = await supabase.from('products_bons_frutos').insert([{
+            name: newProduct.name,
+            price: parseFloat(newProduct.price),
+            description: newProduct.description,
+            active: true
+        }]);
+
+        if (error) {
+            alert(`Erro ao criar produto: ${error.message}`);
+            console.error('Error creating product:', error);
+        } else {
+            setShowModal(false);
+            setNewProduct({ name: '', price: '', description: '' });
+            fetchProducts();
+        }
+    };
+
+    const toggleActive = async (id: string, currentStatus: boolean) => {
+        await supabase.from('products_bons_frutos').update({ active: !currentStatus }).eq('id', id);
+        fetchProducts();
+    };
+
+    return (
+        <div className="p-8 space-y-6">
+            <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold text-white">Produtos</h1>
+                <button
+                    onClick={() => setShowModal(true)}
+                    className="bg-brand-700 hover:bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                >
+                    <Plus size={20} /> Novo Produto
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map(product => (
+                    <div key={product.id} className={`glass-panel p-6 rounded-2xl border-l-4 transition-all ${product.active ? 'border-brand-500' : 'border-gray-600 opacity-60'}`}>
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-3 bg-brand-900/40 rounded-lg text-brand-400">
+                                <Package size={24} />
+                            </div>
+                            <button
+                                onClick={() => toggleActive(product.id, product.active)}
+                                className={`text-xs px-2 py-1 rounded-full border ${product.active ? 'border-green-800 text-green-400' : 'border-gray-600 text-gray-400'}`}
+                            >
+                                {product.active ? 'Ativo' : 'Inativo'}
+                            </button>
+                        </div>
+
+                        <h3 className="text-xl font-bold text-white mb-1">{product.name}</h3>
+                        <p className="text-gray-400 text-sm min-h-[40px] mb-4 line-clamp-2">{product.description || 'Sem descrição.'}</p>
+
+                        <div className="flex items-center gap-1 text-2xl font-bold text-brand-100">
+                            <span className="text-sm text-brand-500 mt-1">R$</span>
+                            {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Create Modal */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="glass-panel w-full max-w-md p-6 rounded-2xl relative">
+                        <h2 className="text-xl font-bold text-white mb-6">Novo Produto</h2>
+                        <form onSubmit={handleCreateProduct} className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Nome do Produto</label>
+                                <input required className="w-full bg-dark-bg border border-brand-700/30 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
+                                    value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Preço (R$)</label>
+                                <input type="number" step="0.01" required className="w-full bg-dark-bg border border-brand-700/30 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
+                                    value={newProduct.price} onChange={e => setNewProduct({ ...newProduct, price: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Descrição</label>
+                                <textarea className="w-full bg-dark-bg border border-brand-700/30 rounded-lg p-3 text-white focus:border-brand-500 outline-none h-24"
+                                    value={newProduct.description} onChange={e => setNewProduct({ ...newProduct, description: e.target.value })} />
+                            </div>
+
+                            <div className="flex gap-4 pt-4">
+                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700">Cancelar</button>
+                                <button type="submit" className="flex-1 py-3 bg-brand-700 text-white rounded-lg hover:bg-brand-600">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
