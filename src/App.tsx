@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Leads from './pages/Leads';
 import Products from './pages/Products';
 import Sales from './pages/Sales';
+import Invoices from './pages/Invoices';
 
 // Re-verified routing for Leads, Products, Sales
 
@@ -51,6 +52,7 @@ function App() {
               <Route path="/leads" element={<Leads />} />
               <Route path="/products" element={<Products />} />
               <Route path="/sales" element={<Sales />} />
+              <Route path="/invoices" element={<Invoices />} />
             </Route>
           </Route>
         </Routes>

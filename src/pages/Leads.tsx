@@ -106,12 +106,26 @@ export default function Leads() {
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${lead.status === 'Novo' ? 'bg-blue-900/20 border-blue-800 text-blue-400' :
-                                                lead.status === 'Fechado' ? 'bg-green-900/20 border-green-800 text-green-400' :
-                                                    'bg-gray-800/50 border-gray-700 text-gray-400'
-                                                }`}>
-                                                {lead.status}
-                                            </span>
+                                            <select
+                                                value={lead.status || 'Novo Lead'}
+                                                onChange={async (e) => {
+                                                    await supabase.from('leads_bons_frutos').update({ status: e.target.value }).eq('id', lead.id);
+                                                    fetchLeads();
+                                                }}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer outline-none transition-all ${lead.status === 'Novo Lead' || lead.status === 'Novo' ? 'bg-blue-900/20 border-blue-800 text-blue-400' :
+                                                        lead.status === 'Repassado' ? 'bg-purple-900/20 border-purple-800 text-purple-400' :
+                                                            lead.status === 'Em Negociação' ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400' :
+                                                                lead.status === 'Fechado' ? 'bg-green-900/20 border-green-800 text-green-400' :
+                                                                    lead.status === 'Perdido' ? 'bg-red-900/20 border-red-800 text-red-400' :
+                                                                        'bg-gray-800/50 border-gray-700 text-gray-400'
+                                                    }`}
+                                            >
+                                                <option value="Novo Lead">Novo Lead</option>
+                                                <option value="Repassado">Repassado</option>
+                                                <option value="Em Negociação">Em Negociação</option>
+                                                <option value="Fechado">Fechado</option>
+                                                <option value="Perdido">Perdido</option>
+                                            </select>
                                         </td>
                                         <td className="p-4 text-right">
                                             <button className="text-brand-400 hover:text-brand-300 text-sm">Detalhes</button>
@@ -144,6 +158,20 @@ export default function Leads() {
                                 <label className="block text-sm text-gray-400 mb-1">Email</label>
                                 <input className="w-full bg-dark-bg border border-brand-700/30 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
                                     value={newLead.email} onChange={e => setNewLead({ ...newLead, email: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Status</label>
+                                <select
+                                    className="w-full bg-dark-bg border border-brand-700/30 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
+                                    value={newLead.status}
+                                    onChange={e => setNewLead({ ...newLead, status: e.target.value })}
+                                >
+                                    <option value="Novo Lead">Novo Lead</option>
+                                    <option value="Repassado">Repassado</option>
+                                    <option value="Em Negociação">Em Negociação</option>
+                                    <option value="Fechado">Fechado</option>
+                                    <option value="Perdido">Perdido</option>
+                                </select>
                             </div>
 
                             <div className="flex gap-4 pt-4">

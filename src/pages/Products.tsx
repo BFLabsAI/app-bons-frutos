@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Product } from '../types';
-import { Plus, Package } from 'lucide-react';
+import { Plus, Package, Trash2 } from 'lucide-react';
 
 export default function Products() {
     const [products, setProducts] = useState<Product[]>([]);
-    // const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [newProduct, setNewProduct] = useState({ name: '', price: '', description: '' });
 
@@ -14,13 +13,11 @@ export default function Products() {
     }, []);
 
     const fetchProducts = async () => {
-        // setLoading(true);
         const { data, error } = await supabase
             .from('products_bons_frutos')
             .select('*')
             .order('name');
         if (!error && data) setProducts(data);
-        // setLoading(false);
     };
 
     const handleCreateProduct = async (e: React.FormEvent) => {
@@ -47,6 +44,19 @@ export default function Products() {
         fetchProducts();
     };
 
+    const handleDelete = async (id: string, name: string) => {
+        if (!confirm(`Tem certeza que deseja excluir o produto "${name}"?`)) return;
+
+        const { error } = await supabase.from('products_bons_frutos').delete().eq('id', id);
+
+        if (error) {
+            alert(`Erro ao excluir: ${error.message}`);
+            console.error('Delete error:', error);
+        } else {
+            fetchProducts();
+        }
+    };
+
     return (
         <div className="p-8 space-y-6">
             <div className="flex items-center justify-between">
@@ -66,12 +76,24 @@ export default function Products() {
                             <div className="p-3 bg-brand-900/40 rounded-lg text-brand-400">
                                 <Package size={24} />
                             </div>
-                            <button
-                                onClick={() => toggleActive(product.id, product.active)}
-                                className={`text-xs px-2 py-1 rounded-full border ${product.active ? 'border-green-800 text-green-400' : 'border-gray-600 text-gray-400'}`}
-                            >
-                                {product.active ? 'Ativo' : 'Inativo'}
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => toggleActive(product.id, product.active)}
+                                    className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border transition-all ${product.active
+                                        ? 'border-green-800 text-green-400 hover:bg-green-900/20'
+                                        : 'border-gray-600 text-gray-400 hover:bg-gray-800/50'}`}
+                                >
+                                    <span className={`w-2 h-2 rounded-full ${product.active ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.6)]' : 'bg-gray-500'}`}></span>
+                                    {product.active ? 'Ativo' : 'Inativo'}
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(product.id, product.name)}
+                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                    title="Excluir produto"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </div>
 
                         <h3 className="text-xl font-bold text-white mb-1">{product.name}</h3>

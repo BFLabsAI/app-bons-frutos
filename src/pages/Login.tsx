@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, Briefcase } from 'lucide-react';
 
 export default function Login() {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
+    const [role, setRole] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +28,7 @@ export default function Login() {
                 if (error) throw error;
                 navigate('/');
             } else {
-                const { error } = await supabase.auth.signUp({
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: {
@@ -37,6 +38,20 @@ export default function Login() {
                     },
                 });
                 if (error) throw error;
+
+                // Salvar o role na tabela profile_bons_frutos
+                if (data.user) {
+                    const { error: profileError } = await supabase
+                        .from('profile_bons_frutos')
+                        .upsert({
+                            id: data.user.id,
+                            full_name: fullName,
+                            role: role,
+                            email: email
+                        });
+                    if (profileError) console.error('Erro ao salvar perfil:', profileError);
+                }
+
                 alert('Cadastro realizado! Aguarde aprovação de um administrador.');
             }
         } catch (err: any) {
@@ -73,19 +88,34 @@ export default function Login() {
                 {/* Form */}
                 <form onSubmit={handleAuth} className="w-full space-y-5">
                     {!isLogin && (
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <User size={18} className="text-brand-100/60 group-focus-within:text-brand-100 transition-colors" />
+                        <>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <User size={18} className="text-brand-100/60 group-focus-within:text-brand-100 transition-colors" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                    className="w-full bg-black/20 border border-brand-700/30 rounded-lg px-10 py-3 text-brand-100 placeholder-brand-100/40 focus:outline-none focus:border-brand-500 focus:bg-brand-900/50 transition-all text-sm tracking-wide"
+                                    placeholder="Nome Completo"
+                                    required
+                                />
                             </div>
-                            <input
-                                type="text"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                className="w-full bg-black/20 border border-brand-700/30 rounded-lg px-10 py-3 text-brand-100 placeholder-brand-100/40 focus:outline-none focus:border-brand-500 focus:bg-brand-900/50 transition-all text-sm tracking-wide uppercase"
-                                placeholder="NOME COMPLETO"
-                                required
-                            />
-                        </div>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Briefcase size={18} className="text-brand-100/60 group-focus-within:text-brand-100 transition-colors" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={role}
+                                    onChange={(e) => setRole(e.target.value)}
+                                    className="w-full bg-black/20 border border-brand-700/30 rounded-lg px-10 py-3 text-brand-100 placeholder-brand-100/40 focus:outline-none focus:border-brand-500 focus:bg-brand-900/50 transition-all text-sm tracking-wide"
+                                    placeholder="Função (ex: Vendedor, Gerente)"
+                                    required
+                                />
+                            </div>
+                        </>
                     )}
 
                     <div className="relative group">
@@ -96,7 +126,7 @@ export default function Login() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-black/20 border border-brand-700/30 rounded-lg px-10 py-3 text-brand-100 placeholder-brand-100/40 focus:outline-none focus:border-brand-500 focus:bg-brand-900/50 transition-all text-sm tracking-wide uppercase"
+                            className="w-full bg-black/20 border border-brand-700/30 rounded-lg px-10 py-3 text-brand-100 placeholder-brand-100/40 focus:outline-none focus:border-brand-500 focus:bg-brand-900/50 transition-all text-sm tracking-wide"
                             placeholder="EMAIL"
                             required
                         />
