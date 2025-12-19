@@ -20,6 +20,16 @@ export default function Invoices() {
 
     const BUCKET_NAME = 'notas_fiscais_bons_frutos';
 
+    // Função para sanitizar nome do arquivo (remove caracteres especiais e espaços)
+    const sanitizeFileName = (name: string): string => {
+        return name
+            .normalize('NFD') // Normaliza caracteres acentuados
+            .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+            .replace(/[^a-zA-Z0-9._-]/g, '_') // Substitui caracteres especiais por _
+            .replace(/_+/g, '_') // Remove múltiplos underscores consecutivos
+            .replace(/^_|_$/g, ''); // Remove underscores no início/fim
+    };
+
     useEffect(() => {
         fetchFiles();
     }, []);
@@ -46,9 +56,10 @@ export default function Invoices() {
 
         setUploading(true);
 
-        // Generate unique filename
+        // Sanitize filename and generate unique name
         const timestamp = Date.now();
-        const fileName = `${timestamp}_${file.name}`;
+        const sanitizedName = sanitizeFileName(file.name);
+        const fileName = `${timestamp}_${sanitizedName}`;
 
         const { error } = await supabase.storage
             .from(BUCKET_NAME)
@@ -88,7 +99,9 @@ export default function Invoices() {
 
         // Get file extension
         const extension = oldName.split('.').pop();
-        const newName = editName.includes('.') ? editName : `${editName}.${extension}`;
+        const timestamp = Date.now();
+        const sanitizedName = sanitizeFileName(editName.includes('.') ? editName : `${editName}.${extension}`);
+        const newName = `${timestamp}_${sanitizedName}`;
 
         // Download the file first
         const { data: fileData, error: downloadError } = await supabase.storage
