@@ -21,6 +21,7 @@ export default function Leads() {
         const { data, error } = await supabase
             .from('leads_bons_frutos')
             .select('*')
+            .neq('status', 'Arquivado') // Filter out archived leads by default
             .order('created_at', { ascending: false });
 
         if (error) console.error(error);
@@ -46,11 +47,29 @@ export default function Leads() {
 
         try {
             const { error } = await supabase.from('leads_bons_frutos').delete().eq('id', id);
-            if (error) throw error;
+
+            if (error) {
+                // Check for Foreign Key violation (Postgres code 23503)
+                if (error.code === '23503') {
+                    if (confirm(`O lead "${name}" possui histórico de vendas e não pode ser excluído permanentemente.\n\nDeseja ARQUIVAR este lead? Ele sairá desta lista.`)) {
+                        const { error: updateError } = await supabase
+                            .from('leads_bons_frutos')
+                            .update({ status: 'Arquivado' })
+                            .eq('id', id);
+
+                        if (updateError) throw updateError;
+                        fetchLeads();
+                        return;
+                    }
+                }
+                throw error;
+            }
             fetchLeads();
         } catch (error: any) {
-            console.error('Error deleting lead:', error);
-            alert(`Erro ao excluir lead: ${error.message}`);
+            if (error.code !== '23503') {
+                console.error('Error deleting lead:', error);
+                alert(`Erro ao excluir lead: ${error.message}`);
+            }
         }
     };
 
@@ -138,6 +157,7 @@ export default function Leads() {
                                                 <option value="Em Negociação">Em Negociação</option>
                                                 <option value="Fechado">Fechado</option>
                                                 <option value="Perdido">Perdido</option>
+                                                <option value="Arquivado">Arquivado</option>
                                             </select>
                                         </td>
                                         <td className="p-4 text-right">

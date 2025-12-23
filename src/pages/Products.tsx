@@ -67,11 +67,24 @@ export default function Products() {
 
         try {
             const { error } = await supabase.from('products_bons_frutos').delete().eq('id', id);
-            if (error) throw error;
+
+            if (error) {
+                // Check for Foreign Key violation (Postgres code 23503)
+                if (error.code === '23503') {
+                    if (confirm(`O produto "${name}" possui vendas vinculadas e não pode ser excluído permanentemente.\n\nDeseja apenas INATIVAR este produto? Ele deixará de aparecer para novas vendas.`)) {
+                        await toggleActive(id, true); // Force set to inactive (active: false)
+                        return;
+                    }
+                }
+                throw error;
+            }
+
             fetchProducts();
         } catch (error: any) {
-            alert(`Erro ao excluir: ${error.message}\nVerifique se este produto não está vinculado a uma venda.`);
-            console.error('Delete error:', error);
+            if (error.code !== '23503') { // Don't alert again if we already handled the 23503
+                alert(`Erro ao excluir: ${error.message}`);
+                console.error('Delete error:', error);
+            }
         }
     };
 
