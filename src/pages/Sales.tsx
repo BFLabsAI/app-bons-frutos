@@ -27,7 +27,7 @@ export default function Sales() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedLeadId, setSelectedLeadId] = useState('');
-    const [cart, setCart] = useState<{ product: Product, quantity: number }[]>([]);
+    const [cart, setCart] = useState<{ product: Product, quantity: number, unitPrice: number }[]>([]);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [salesHistory, setSalesHistory] = useState<SaleWithLead[]>([]);
@@ -100,7 +100,7 @@ export default function Sales() {
             if (existing) {
                 return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
             }
-            return [...prev, { product, quantity: 1 }];
+            return [...prev, { product, quantity: 1, unitPrice: product.price }];
         });
     };
 
@@ -118,7 +118,19 @@ export default function Sales() {
         }));
     };
 
-    const totalAmount = cart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
+    const updateUnitPrice = (productId: string, newPrice: string) => {
+        const price = parseFloat(newPrice.replace(',', '.'));
+        if (isNaN(price)) return;
+
+        setCart(prev => prev.map(item => {
+            if (item.product.id === productId) {
+                return { ...item, unitPrice: price };
+            }
+            return item;
+        }));
+    };
+
+    const totalAmount = cart.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
 
     const handleCheckout = async () => {
         if (!selectedLeadId || cart.length === 0 || !user) return;
@@ -144,7 +156,7 @@ export default function Sales() {
                 sale_id: sale.id,
                 product_id: item.product.id,
                 quantity: item.quantity,
-                unit_price: item.product.price
+                unit_price: item.unitPrice
             }));
 
             const { error: itemsError } = await supabase.from('sale_items_bons_frutos').insert(saleItems);
@@ -227,9 +239,9 @@ export default function Sales() {
                                                         value={sale.status}
                                                         onChange={(e) => handleStatusChange(sale.id, e.target.value)}
                                                         className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer outline-none transition-all ${sale.status === 'Pago' ? 'bg-green-900/20 border-green-800 text-green-400' :
-                                                                sale.status === 'A Pagar' ? 'bg-red-900/20 border-red-800 text-red-400' :
-                                                                    sale.status === 'Parcelado' ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400' :
-                                                                        'bg-gray-800/50 border-gray-700 text-gray-400'
+                                                            sale.status === 'A Pagar' ? 'bg-red-900/20 border-red-800 text-red-400' :
+                                                                sale.status === 'Parcelado' ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400' :
+                                                                    'bg-gray-800/50 border-gray-700 text-gray-400'
                                                             }`}
                                                     >
                                                         <option value="Pago">Pago</option>
@@ -353,7 +365,16 @@ export default function Sales() {
                                     <div key={item.product.id} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
                                         <div className="flex-1">
                                             <p className="text-white font-medium text-sm">{item.product.name}</p>
-                                            <p className="text-gray-400 text-xs">R$ {item.product.price.toFixed(2)}</p>
+                                            <div className="flex items-center gap-1 mt-1">
+                                                <span className="text-gray-500 text-xs">R$</span>
+                                                <input
+                                                    className="w-20 bg-transparent text-gray-400 text-xs border-b border-gray-700 focus:border-brand-500 focus:text-white outline-none"
+                                                    value={item.unitPrice}
+                                                    onChange={(e) => updateUnitPrice(item.product.id, e.target.value)}
+                                                    type="number"
+                                                    step="0.01"
+                                                />
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <button onClick={() => updateQuantity(item.product.id, -1)} className="p-1 hover:bg-white/10 rounded"><Minus size={14} /></button>
