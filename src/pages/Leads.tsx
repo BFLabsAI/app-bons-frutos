@@ -21,7 +21,6 @@ export default function Leads() {
         const { data, error } = await supabase
             .from('leads_bons_frutos')
             .select('*')
-            .neq('status', 'Arquivado') // Filter out archived leads by default
             .order('created_at', { ascending: false });
 
         if (error) console.error(error);
@@ -49,20 +48,58 @@ export default function Leads() {
             const { error } = await supabase.from('leads_bons_frutos').delete().eq('id', id);
 
             if (error) {
-                // Check for Foreign Key violation (Postgres code 23503)
                 if (error.code === '23503') {
-                    if (confirm(`O lead "${name}" possui histórico de vendas e não pode ser excluído permanentemente.\n\nDeseja ARQUIVAR este lead? Ele sairá desta lista.`)) {
-                        const { error: updateError } = await supabase
-                            .from('leads_bons_frutos')
-                            .update({ status: 'Arquivado' })
-                            .eq('id', id);
+                    const confirmCascade = confirm(
+                        `O lead "${name}" possui vendas registradas.\n\n` +
+                        `Deseja EXCLUIR DEFINITIVAMENTE?\n` +
+                        `Isso apagará TODO o histórico de compras deste cliente.`
+                    );
 
-                        if (updateError) throw updateError;
-                        fetchLeads();
-                        return;
+                    if (confirmCascade) {
+                        try {
+                            // 1. Buscar vendas vinculadas
+                            const { data: sales } = await supabase
+                                .from('sales_bons_frutos')
+                                .select('id')
+                                .eq('lead_id', id);
+
+                            if (sales && sales.length > 0) {
+                                const saleIds = sales.map(s => s.id);
+
+                                // 2. Remover itens dessas vendas
+                                const { error: itemsError } = await supabase
+                                    .from('sale_items_bons_frutos')
+                                    .delete()
+                                    .in('sale_id', saleIds);
+                                if (itemsError) throw itemsError;
+
+                                // 3. Remover as vendas
+                                const { error: salesError } = await supabase
+                                    .from('sales_bons_frutos')
+                                    .delete()
+                                    .in('id', saleIds);
+                                if (salesError) throw salesError;
+                            }
+
+                            // 4. Remover o Lead
+                            const { error: deleteError } = await supabase
+                                .from('leads_bons_frutos')
+                                .delete()
+                                .eq('id', id);
+
+                            if (deleteError) throw deleteError;
+
+                            fetchLeads();
+                            return;
+                        } catch (cascadeError: any) {
+                            console.error('Cascade delete error:', cascadeError);
+                            alert(`Erro ao forçar exclusão: ${cascadeError.message}`);
+                            return;
+                        }
                     }
+                } else {
+                    throw error;
                 }
-                throw error;
             }
             fetchLeads();
         } catch (error: any) {
@@ -157,7 +194,6 @@ export default function Leads() {
                                                 <option value="Em Negociação">Em Negociação</option>
                                                 <option value="Fechado">Fechado</option>
                                                 <option value="Perdido">Perdido</option>
-                                                <option value="Arquivado">Arquivado</option>
                                             </select>
                                         </td>
                                         <td className="p-4 text-right">

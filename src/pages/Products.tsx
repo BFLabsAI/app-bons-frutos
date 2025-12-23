@@ -66,22 +66,52 @@ export default function Products() {
         if (!confirm(`Tem certeza que deseja excluir o produto "${name}"?`)) return;
 
         try {
+            // Tentativa inicial de exclusão direta
             const { error } = await supabase.from('products_bons_frutos').delete().eq('id', id);
 
             if (error) {
-                // Check for Foreign Key violation (Postgres code 23503)
+                // Se der erro de FK (23503), pede confirmação para exclusão em cascata
                 if (error.code === '23503') {
-                    if (confirm(`O produto "${name}" possui vendas vinculadas e não pode ser excluído permanentemente.\n\nDeseja apenas INATIVAR este produto? Ele deixará de aparecer para novas vendas.`)) {
-                        await toggleActive(id, true); // Force set to inactive (active: false)
-                        return;
+                    const confirmCascade = confirm(
+                        `O produto "${name}" possui vendas vinculadas.\n\n` +
+                        `Deseja EXCLUIR DEFINITIVAMENTE?\n` +
+                        `Isso removerá o produto de todos os pedidos anteriores.`
+                    );
+
+                    if (confirmCascade) {
+                        try {
+                            // 1. Remove itens de venda vinculados a este produto
+                            const { error: itemsError } = await supabase
+                                .from('sale_items_bons_frutos')
+                                .delete()
+                                .eq('product_id', id);
+
+                            if (itemsError) throw itemsError;
+
+                            // 2. Remove o produto
+                            const { error: deleteError } = await supabase
+                                .from('products_bons_frutos')
+                                .delete()
+                                .eq('id', id);
+
+                            if (deleteError) throw deleteError;
+
+                            fetchProducts();
+                            return;
+                        } catch (cascadeError: any) {
+                            console.error('Cascade delete error:', cascadeError);
+                            alert(`Erro ao forçar exclusão: ${cascadeError.message}`);
+                            return;
+                        }
                     }
+                } else {
+                    throw error;
                 }
-                throw error;
             }
 
             fetchProducts();
         } catch (error: any) {
-            if (error.code !== '23503') { // Don't alert again if we already handled the 23503
+            if (error.code !== '23503') {
                 alert(`Erro ao excluir: ${error.message}`);
                 console.error('Delete error:', error);
             }
