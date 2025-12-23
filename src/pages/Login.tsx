@@ -42,7 +42,7 @@ export default function Login() {
                 // Salvar o role na tabela profile_bons_frutos
                 if (data.user) {
                     const { error: profileError } = await supabase
-                        .from('profile_bons_frutos')
+                        .from('profiles_bons_frutos')
                         .upsert({
                             id: data.user.id,
                             full_name: fullName,
