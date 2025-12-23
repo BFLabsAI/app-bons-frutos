@@ -22,38 +22,56 @@ export default function Products() {
 
     const handleCreateProduct = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { error } = await supabase.from('products_bons_frutos').insert([{
-            name: newProduct.name,
-            price: parseFloat(newProduct.price),
-            description: newProduct.description,
-            active: true
-        }]);
 
-        if (error) {
-            alert(`Erro ao criar produto: ${error.message}`);
-            console.error('Error creating product:', error);
-        } else {
+        try {
+            // Replace comma with dot for valid float parsing
+            const cleanPrice = newProduct.price.replace(',', '.');
+            const priceValue = parseFloat(cleanPrice);
+
+            if (isNaN(priceValue)) {
+                alert('Por favor, insira um preço válido.');
+                return;
+            }
+
+            const { error } = await supabase.from('products_bons_frutos').insert([{
+                name: newProduct.name,
+                price: priceValue,
+                description: newProduct.description,
+                active: true
+            }]);
+
+            if (error) throw error;
+
             setShowModal(false);
             setNewProduct({ name: '', price: '', description: '' });
             fetchProducts();
+        } catch (error: any) {
+            alert(`Erro ao criar produto: ${error.message}`);
+            console.error('Error creating product:', error);
         }
     };
 
     const toggleActive = async (id: string, currentStatus: boolean) => {
-        await supabase.from('products_bons_frutos').update({ active: !currentStatus }).eq('id', id);
-        fetchProducts();
+        try {
+            const { error } = await supabase.from('products_bons_frutos').update({ active: !currentStatus }).eq('id', id);
+            if (error) throw error;
+            fetchProducts();
+        } catch (error: any) {
+            console.error('Error toggling status:', error);
+            alert(`Erro ao atualizar status: ${error.message}`);
+        }
     };
 
     const handleDelete = async (id: string, name: string) => {
         if (!confirm(`Tem certeza que deseja excluir o produto "${name}"?`)) return;
 
-        const { error } = await supabase.from('products_bons_frutos').delete().eq('id', id);
-
-        if (error) {
-            alert(`Erro ao excluir: ${error.message}`);
-            console.error('Delete error:', error);
-        } else {
+        try {
+            const { error } = await supabase.from('products_bons_frutos').delete().eq('id', id);
+            if (error) throw error;
             fetchProducts();
+        } catch (error: any) {
+            alert(`Erro ao excluir: ${error.message}\nVerifique se este produto não está vinculado a uma venda.`);
+            console.error('Delete error:', error);
         }
     };
 
@@ -120,8 +138,15 @@ export default function Products() {
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-400 mb-1">Preço (R$)</label>
-                                <input type="number" step="0.01" required className="w-full bg-dark-bg border border-brand-700/30 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
-                                    value={newProduct.price} onChange={e => setNewProduct({ ...newProduct, price: e.target.value })} />
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    required
+                                    className="w-full bg-dark-bg border border-brand-700/30 rounded-lg p-3 text-white focus:border-brand-500 outline-none"
+                                    value={newProduct.price}
+                                    onChange={e => setNewProduct({ ...newProduct, price: e.target.value })}
+                                    placeholder="0,00"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm text-gray-400 mb-1">Descrição</label>

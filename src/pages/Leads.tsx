@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Lead } from '../types';
-import { Plus, Search, Phone, Mail, User } from 'lucide-react';
+import { Plus, Search, Phone, Mail, User, Trash2 } from 'lucide-react';
 
 export default function Leads() {
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -38,6 +38,19 @@ export default function Leads() {
             setShowModal(false);
             setNewLead({ name: '', phone: '', email: '', status: 'Novo' });
             fetchLeads();
+        }
+    };
+
+    const handleDelete = async (id: string, name: string) => {
+        if (!confirm(`Tem certeza que deseja excluir o lead "${name}"?`)) return;
+
+        try {
+            const { error } = await supabase.from('leads_bons_frutos').delete().eq('id', id);
+            if (error) throw error;
+            fetchLeads();
+        } catch (error: any) {
+            console.error('Error deleting lead:', error);
+            alert(`Erro ao excluir lead: ${error.message}`);
         }
     };
 
@@ -113,11 +126,11 @@ export default function Leads() {
                                                     fetchLeads();
                                                 }}
                                                 className={`px-3 py-1.5 rounded-full text-xs font-medium border cursor-pointer outline-none transition-all ${lead.status === 'Novo Lead' || lead.status === 'Novo' ? 'bg-blue-900/20 border-blue-800 text-blue-400' :
-                                                        lead.status === 'Repassado' ? 'bg-purple-900/20 border-purple-800 text-purple-400' :
-                                                            lead.status === 'Em Negociação' ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400' :
-                                                                lead.status === 'Fechado' ? 'bg-green-900/20 border-green-800 text-green-400' :
-                                                                    lead.status === 'Perdido' ? 'bg-red-900/20 border-red-800 text-red-400' :
-                                                                        'bg-gray-800/50 border-gray-700 text-gray-400'
+                                                    lead.status === 'Repassado' ? 'bg-purple-900/20 border-purple-800 text-purple-400' :
+                                                        lead.status === 'Em Negociação' ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400' :
+                                                            lead.status === 'Fechado' ? 'bg-green-900/20 border-green-800 text-green-400' :
+                                                                lead.status === 'Perdido' ? 'bg-red-900/20 border-red-800 text-red-400' :
+                                                                    'bg-gray-800/50 border-gray-700 text-gray-400'
                                                     }`}
                                             >
                                                 <option value="Novo Lead">Novo Lead</option>
@@ -129,6 +142,13 @@ export default function Leads() {
                                         </td>
                                         <td className="p-4 text-right">
                                             <button className="text-brand-400 hover:text-brand-300 text-sm">Detalhes</button>
+                                            <button
+                                                onClick={() => handleDelete(lead.id, lead.name)}
+                                                className="text-gray-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-lg transition-all ml-2"
+                                                title="Excluir Lead"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
