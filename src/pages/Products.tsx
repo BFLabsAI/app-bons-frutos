@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Product } from '../types';
-import { Plus, Package, Trash2 } from 'lucide-react';
+import { Plus, Package, Trash2, Edit2 } from 'lucide-react';
 
 export default function Products() {
     const [products, setProducts] = useState<Product[]>([]);
     const [showModal, setShowModal] = useState(false);
     const [newProduct, setNewProduct] = useState({ name: '', price: '', description: '' });
+    const [editingId, setEditingId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchProducts();
@@ -33,22 +34,48 @@ export default function Products() {
                 return;
             }
 
-            const { error } = await supabase.from('products_bons_frutos').insert([{
-                name: newProduct.name,
-                price: priceValue,
-                description: newProduct.description,
-                active: true
-            }]);
+            if (editingId) {
+                // Update existing product
+                const { error } = await supabase
+                    .from('products_bons_frutos')
+                    .update({
+                        name: newProduct.name,
+                        price: priceValue,
+                        description: newProduct.description
+                    })
+                    .eq('id', editingId);
 
-            if (error) throw error;
+                if (error) throw error;
+            } else {
+                // Create new product
+                const { error } = await supabase.from('products_bons_frutos').insert([{
+                    name: newProduct.name,
+                    price: priceValue,
+                    description: newProduct.description,
+                    active: true
+                }]);
+
+                if (error) throw error;
+            }
 
             setShowModal(false);
             setNewProduct({ name: '', price: '', description: '' });
+            setEditingId(null);
             fetchProducts();
         } catch (error: any) {
-            alert(`Erro ao criar produto: ${error.message}`);
-            console.error('Error creating product:', error);
+            alert(`Erro ao salvar produto: ${error.message}`);
+            console.error('Error saving product:', error);
         }
+    };
+
+    const handleEdit = (product: Product) => {
+        setNewProduct({
+            name: product.name,
+            price: product.price.toString().replace('.', ','),
+            description: product.description || ''
+        });
+        setEditingId(product.id);
+        setShowModal(true);
     };
 
     const toggleActive = async (id: string, currentStatus: boolean) => {
@@ -148,6 +175,13 @@ export default function Products() {
                                     {product.active ? 'Ativo' : 'Inativo'}
                                 </button>
                                 <button
+                                    onClick={() => handleEdit(product)}
+                                    className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all"
+                                    title="Editar produto"
+                                >
+                                    <Edit2 size={16} />
+                                </button>
+                                <button
                                     onClick={() => handleDelete(product.id, product.name)}
                                     className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                                     title="Excluir produto"
@@ -168,11 +202,13 @@ export default function Products() {
                 ))}
             </div>
 
-            {/* Create Modal */}
+            {/* Create/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="glass-panel w-full max-w-md p-6 rounded-2xl relative">
-                        <h2 className="text-xl font-bold text-white mb-6">Novo Produto</h2>
+                        <h2 className="text-xl font-bold text-white mb-6">
+                            {editingId ? 'Editar Produto' : 'Novo Produto'}
+                        </h2>
                         <form onSubmit={handleCreateProduct} className="space-y-4">
                             <div>
                                 <label className="block text-sm text-gray-400 mb-1">Nome do Produto</label>
@@ -198,8 +234,20 @@ export default function Products() {
                             </div>
 
                             <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700">Cancelar</button>
-                                <button type="submit" className="flex-1 py-3 bg-brand-700 text-white rounded-lg hover:bg-brand-600">Salvar</button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowModal(false);
+                                        setEditingId(null);
+                                        setNewProduct({ name: '', price: '', description: '' });
+                                    }}
+                                    className="flex-1 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
+                                >
+                                    Cancelar
+                                </button>
+                                <button type="submit" className="flex-1 py-3 bg-brand-700 text-white rounded-lg hover:bg-brand-600">
+                                    {editingId ? 'Salvar Alterações' : 'Criar Produto'}
+                                </button>
                             </div>
                         </form>
                     </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Lead } from '../types';
-import { Plus, Search, Phone, Mail, User, Trash2 } from 'lucide-react';
+import { Plus, Search, Phone, Mail, User, Trash2, Edit2 } from 'lucide-react';
 
 export default function Leads() {
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -9,8 +9,9 @@ export default function Leads() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
 
-    // New Lead Form State
+    // New/Edit Lead Form State
     const [newLead, setNewLead] = useState({ name: '', phone: '', email: '', status: 'Novo' });
+    const [editingId, setEditingId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchLeads();
@@ -30,15 +31,44 @@ export default function Leads() {
 
     const handleCreateLead = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { error } = await supabase.from('leads_bons_frutos').insert([newLead]);
-        if (error) {
-            alert(`Erro ao criar lead: ${error.message}`);
-            console.error(error);
-        } else {
+
+        try {
+            if (editingId) {
+                // Update existing lead
+                const { error } = await supabase
+                    .from('leads_bons_frutos')
+                    .update(newLead)
+                    .eq('id', editingId);
+
+                if (error) throw error;
+            } else {
+                // Create new lead
+                const { error } = await supabase
+                    .from('leads_bons_frutos')
+                    .insert([newLead]);
+
+                if (error) throw error;
+            }
+
             setShowModal(false);
             setNewLead({ name: '', phone: '', email: '', status: 'Novo' });
+            setEditingId(null);
             fetchLeads();
+        } catch (error: any) {
+            alert(`Erro ao salvar lead: ${error.message}`);
+            console.error(error);
         }
+    };
+
+    const handleEdit = (lead: Lead) => {
+        setNewLead({
+            name: lead.name,
+            phone: lead.phone || '',
+            email: lead.email || '',
+            status: lead.status || 'Novo'
+        });
+        setEditingId(lead.id);
+        setShowModal(true);
     };
 
     const handleDelete = async (id: string, name: string) => {
@@ -197,7 +227,14 @@ export default function Leads() {
                                             </select>
                                         </td>
                                         <td className="p-4 text-right">
-                                            <button className="text-brand-400 hover:text-brand-300 text-sm">Detalhes</button>
+                                            <button
+                                                onClick={() => handleEdit(lead)}
+                                                className="text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 p-2 rounded-lg transition-all"
+                                                title="Editar Lead"
+                                            >
+                                                <Edit2 size={18} />
+                                            </button>
+                                            <button className="text-brand-400 hover:text-brand-300 text-sm ml-2">Detalhes</button>
                                             <button
                                                 onClick={() => handleDelete(lead.id, lead.name)}
                                                 className="text-gray-500 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-lg transition-all ml-2"
@@ -214,11 +251,13 @@ export default function Leads() {
                 </div>
             </div>
 
-            {/* Create Modal */}
+            {/* Create/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="glass-panel w-full max-w-md p-6 rounded-2xl relative">
-                        <h2 className="text-xl font-bold text-white mb-6">Novo Lead</h2>
+                        <h2 className="text-xl font-bold text-white mb-6">
+                            {editingId ? 'Editar Lead' : 'Novo Lead'}
+                        </h2>
                         <form onSubmit={handleCreateLead} className="space-y-4">
                             <div>
                                 <label className="block text-sm text-gray-400 mb-1">Nome</label>
@@ -251,8 +290,20 @@ export default function Leads() {
                             </div>
 
                             <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700">Cancelar</button>
-                                <button type="submit" className="flex-1 py-3 bg-brand-700 text-white rounded-lg hover:bg-brand-600">Salvar</button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowModal(false);
+                                        setEditingId(null);
+                                        setNewLead({ name: '', phone: '', email: '', status: 'Novo' });
+                                    }}
+                                    className="flex-1 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
+                                >
+                                    Cancelar
+                                </button>
+                                <button type="submit" className="flex-1 py-3 bg-brand-700 text-white rounded-lg hover:bg-brand-600">
+                                    {editingId ? 'Salvar Alterações' : 'Cadastrar Lead'}
+                                </button>
                             </div>
                         </form>
                     </div>
